@@ -1,4 +1,4 @@
-/* build: `node build.js modules=ALL exclude=gestures,json minifier=uglifyjs` */
+/* build: `node build.js modules=ALL exclude=json,gestures minifier=uglifyjs` */
 /*! Fabric.js Copyright 2008-2015, Printio (Juriy Zaytsev, Maxim Chernyak) */
 
 var fabric = fabric || { version: "1.5.0" };
@@ -1533,6 +1533,23 @@ fabric.Collection = {
 
   var slice = Array.prototype.slice, emptyFunction = function() { },
 
+      makePropertyDescriptor = function(value) {
+        return {
+          value: value,
+          writable: true,
+          enumerable: true,
+          configurable: true
+        };
+      },
+
+      getOwnPropertyDescriptor = (function() {
+        function getOwnPropertyDescriptorPolyfill(obj, prop) {
+          return (prop in obj) ? makePropertyDescriptor(obj[prop]) : undefined;
+        }
+
+        return Object.getOwnPropertyDescriptor || getOwnPropertyDescriptorPolyfill;
+      })(),
+
       IS_DONTENUM_BUGGY = (function() {
         for (var p in { toString: 1 }) {
           if (p === 'toString') {
@@ -1565,7 +1582,13 @@ fabric.Collection = {
             })(property);
           }
           else {
-            klass.prototype[property] = source[property];
+            var descriptor = getOwnPropertyDescriptor(source, property);
+
+            if (!descriptor || !(descriptor.get || descriptor.set)) {
+              descriptor = makePropertyDescriptor(source[property]);
+            }
+
+            Object.defineProperty(klass.prototype, property, descriptor);
           }
 
           if (IS_DONTENUM_BUGGY) {
